@@ -5,7 +5,7 @@
 
 这台机器有多种供应商，部分供应商的硬件并没有被完全驱动，因此这里不保证完全可用。硬件供应商驱动情况请参考 [https://wiki.postmarketos.org/wiki/Xiaomi_Redmi_Note_4_(xiaomi-mido)](https://wiki.postmarketos.org/wiki/Xiaomi_Redmi_Note_4_(xiaomi-mido)) 
 
-如果你希望使用我已经编译好的系统，可以在 release 里下载文件并直接跳到刷入一节。
+如果你希望使用我已经编译好的系统，可以在 [Releases](https://github.com/calico-cat-3333/debian-on-mido/releases) 里下载文件并直接跳到[刷入](https://github.com/calico-cat-3333/debian-on-mido/tree/main#%E5%88%B7%E5%85%A5)一节。
 
 ## 编译内核
 
