@@ -121,11 +121,7 @@ sudo su
 cp linux*deb ./test/tmp/
 ```
 
-在 chroot 中安装内核包，注意四个 deb 中有一个名字里有 dbg 的文件不需要安装
-
-```text-x-sh
-dpkg -i
-```
+在 chroot 中安装内核包，使用 `dpkg -i` 命令，注意四个 deb 中有一个名字里有 dbg 的文件不需要安装。
 
 编辑 chroot 中 /etc/initramfs-tools/modules 加入以下内容
 
