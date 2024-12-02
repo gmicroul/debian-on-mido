@@ -197,6 +197,7 @@ jobs:
         run: |
           cd /rootfs/
           ls
+          ls -ltrh /mnt/chroot/boot/
           cp /mnt/chroot/boot/initrd* ./tmp_mkboot/
           cp ./tmp_mkboot/initrd* ./tmp_mkboot/initrd.img
           cp ./tmp_mkboot/*.dtb ./tmp_mkboot/dtb
