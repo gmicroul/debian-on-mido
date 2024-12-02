@@ -147,8 +147,8 @@ jobs:
           cp linux/arch/arm64/boot/Image.gz /workdir
           cp linux/arch/arm64/boot/Image.gz /rootfs/tmp_mkboot/
           ls -ltrh linux/arch/arm64/boot/dts/qcom/
-          cp linux/arch/arm64/boot/dts/qcom/*${{ inputs.device_code }}*.dts /rootfs/tmp_mkboot/
-          tar -czf /workdir/dtb.tar.gz linux/arch/arm64/boot/dts/qcom/*${{ inputs.device_code }}*.dts
+          cp linux/arch/arm64/boot/dts/qcom/*${{ inputs.device_code }}*.dtb /rootfs/tmp_mkboot/
+          tar -czf /workdir/dtb.tar.gz linux/arch/arm64/boot/dts/qcom/*${{ inputs.device_code }}*.dtb
           find ./ -type f \( ! -name "*.ko" -a ! -name "modules.*" \) -exec rm -f {} \;
           cd linux/
           tar -czf /workdir/modules.tar.gz ./*
