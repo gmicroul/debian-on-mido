@@ -6,7 +6,7 @@ on:
       kernel_repo:
         description: "Kernel repository URL"
         required: true
-        default: "https://gitlab.com/kschen202115/msm8996-6.9.git"
+        default: "-b 6.9.0/main https://github.com/arm64-builder/msm8953-mainlinelinux.git"
       kernel_branch:
         description: "Kernel branch"
         required: true
@@ -14,7 +14,7 @@ on:
       device_code:
         description: "Device codename"
         required: true
-        default: "capricorn"
+        default: "mido"
       apply_cjktty_patch:
         description: "Apply CJKTTY patch"
         required: true
