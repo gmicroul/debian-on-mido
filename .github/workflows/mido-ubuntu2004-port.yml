@@ -1,4 +1,4 @@
-name: Midu Ubuntu 20.04 Port
+name: Mido Ubuntu 20.04 Port
 
 on:
   repository_dispatch:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
     - name: Checkout repository
