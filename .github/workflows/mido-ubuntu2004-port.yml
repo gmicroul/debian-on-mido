@@ -1,0 +1,212 @@
+name: Midu Ubuntu 20.04 Port
+
+on:
+  push:
+    branches:
+      - main  # 或者你希望触发此工作的分支
+  pull_request:
+    branches:
+      - main  # 或者你希望触发此工作的分支
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y binfmt-support qemu-user-static gcc-10-aarch64-linux-gnu kernel-package fakeroot simg2img img2simg mkbootimg bison flex gcc-aarch64-linux-gnu pkg-config libncurses-dev libssl-dev unzip git debootstrap
+
+    - name: Set up git proxy (if needed)
+      run: |
+        chmod +x gitproxy.sh
+        ./gitproxy.sh on
+
+    - name: Clone the kernel repository
+      run: |
+        git clone https://github.com/msm8953-mainline/linux.git --depth 1
+        cd linux
+
+    - name: Download .config file
+      run: |
+        wget https://gitee.com/meiziyang2023/ubuntu-ports-xiaomi-625-phones/raw/master/.config
+
+    - name: Set up environment variables
+      run: |
+        echo "export CROSS_COMPILE=aarch64-linux-gnu-" > env.sh
+        echo "export ARCH=arm64" >> env.sh
+        echo "export CC=aarch64-linux-gnu-gcc" >> env.sh
+        chmod +x env.sh
+
+    - name: Source environment variables
+      run: source ./env.sh
+
+    - name: Clean and configure kernel
+      run: |
+        make clean
+        make menuconfig
+
+    - name: Compile kernel
+      run: |
+        make -j$(nproc)
+
+    - name: Build kernel deb package
+      run: |
+        fakeroot make-kpkg --initrd --cross-compile aarch64-linux-gnu- --arch arm64 kernel_image kernel_headers -j$(nproc)
+
+    - name: Move kernel deb package to workspace
+      run: |
+        mv *.deb ~/workspaces/
+
+    - name: Create rootfs.img
+      run: |
+        dd if=/dev/zero of=rootfs-focal.img bs=1G count=2
+        mkfs.ext4 rootfs-focal.img
+
+    - name: Mount rootfs.img
+      run: |
+        mkdir -p ~/chroot
+        sudo mount rootfs-focal.img ~/chroot
+
+    - name: Bootstrap rootfs
+      run: |
+        sudo debootstrap --arch arm64 focal ~/chroot https://mirrors.aliyun.com/ubuntu-ports
+
+    - name: Bind mount necessary directories
+      run: |
+        sudo mount --bind /proc ~/chroot/proc
+        sudo mount --bind /dev ~/chroot/dev
+        sudo mount --bind /dev/pts ~/chroot/dev/pts
+        sudo mount --bind /sys ~/chroot/sys
+
+    - name: Enter chroot environment
+      run: |
+        sudo chroot ~/chroot
+
+    - name: Configure chroot environment
+      run: |
+        cat > /etc/apt/sources.list << EOF
+        deb https://mirrors.aliyun.com/ubuntu-ports/ focal main restricted universe multiverse
+        deb-src https://mirrors.aliyun.com/ubuntu-ports/ focal main restricted universe multiverse
+
+        deb https://mirrors.aliyun.com/ubuntu-ports/ focal-security main restricted universe multiverse
+        deb-src https://mirrors.aliyun.com/ubuntu-ports/ focal-security main restricted universe multiverse
+
+        deb https://mirrors.aliyun.com/ubuntu-ports/ focal-updates main restricted universe multiverse
+        deb-src https://mirrors.aliyun.com/ubuntu-ports/ focal-updates main restricted universe multiverse
+
+        deb https://mirrors.aliyun.com/ubuntu-ports/ focal-backports main restricted universe multiverse
+        deb-src https://mirrors.aliyun.com/ubuntu-ports/ focal-backports main restricted universe multiverse
+        EOF
+
+        apt update && apt upgrade
+        locale-gen en_US.UTF-8
+        locale-gen zh_CN.UTF-8
+        rm /etc/localtime
+        ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+        echo 'xiaomi-mido' > /etc/hostname
+        apt purge netplan.io
+        useradd -m -s /bin/bash hol
+        usermod -aG sudo hol
+        passwd hol
+        apt install man man-db bash-completion vim tmux network-manager chrony openssh-server initramfs-tools --no-install-recommends -y
+
+    - name: Exit chroot environment
+      run: |
+        exit
+
+    - name: Unmount chroot directories
+      run: |
+        sudo umount ~/chroot/proc
+        sudo umount ~/chroot/dev/pts
+        sudo umount ~/chroot/dev
+        sudo umount ~/chroot/sys
+        sudo umount ~/chroot
+
+    - name: Install kernel in chroot
+      run: |
+        sudo chroot ~/chroot dpkg --get-selections | grep linux
+        sudo chroot ~/chroot dpkg -l | grep -E "linux-headers|linux-image" | awk '{print $2}' | xargs sudo chroot ~/chroot dpkg -P
+        sudo chroot ~/chroot rm -rf /lib/modules/*
+        sudo chroot ~/chroot dpkg -i ~/workspaces/*.deb
+        sudo chroot ~/chroot dpkg --get-selections | grep linux
+        sudo chroot ~/chroot ls /lib/modules
+
+    - name: Copy firmware to chroot
+      run: |
+        sudo cp -r ./firmware/* ~/chroot/usr/lib/firmware/
+
+    - name: Prepare boot.img
+      run: |
+        mkdir -p ~/workspaces/tmp_mkboot
+        rm -rf ~/workspaces/tmp_mkboot/*
+        sudo cp ~/workspaces/linux/arch/arm64/boot/dts/qcom/*mido*.dtb ~/workspaces/tmp_mkboot/
+        sudo cp ~/workspaces/linux/arch/arm64/boot/Image.gz ~/workspaces/tmp_mkboot/
+        sudo cp ~/chroot/boot/initrd* ~/workspaces/tmp_mkboot/
+        sudo cp ~/workspaces/tmp_mkboot/initrd* ~/workspaces/tmp_mkboot/initrd.img
+        sudo cp ~/workspaces/tmp_mkboot/msm*.dtb ~/workspaces/tmp_mkboot/dtb
+        cat ~/workspaces/tmp_mkboot/Image.gz ~/workspaces/tmp_mkboot/dtb > ~/workspaces/tmp_mkboot/kernel-dtb
+        sudo mkbootimg --base 0x80000000 \\
+          --kernel_offset 0x00008000 \\
+          --ramdisk_offset 0x01000000 \\
+          --tags_offset 0x00000100 \\
+          --pagesize 2048 \\
+          --second_offset 0x00f00000 \\
+          --ramdisk ~/workspaces/tmp_mkboot/initrd.img \\
+          --cmdline "console=tty0 root=UUID=$(sudo file ~/workspaces/rootfs-focal.img | awk '{print $3}') rw loglevel=3 splash" \\
+          --kernel ~/workspaces/tmp_mkboot/kernel-dtb -o ~/workspaces/tmp_mkboot/boot.img
+
+    - name: Enable resizefs service
+      run: |
+        cat > /etc/systemd/system/resizefs.service << EOF
+        [Unit]
+        Description=Expand root filesystem to fill partition
+        After=local-fs.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/bash -c 'exec /usr/sbin/resize2fs $(findmnt -nvo SOURCE /)'
+        ExecStartPost=/usr/bin/systemctl disable resizefs.service
+        RemainAfterExit=true
+
+        [Install]
+        WantedBy=default.target
+        EOF
+        sudo systemctl enable resizefs.service
+
+    - name: Enable serial login
+      run: |
+        cat > /etc/systemd/system/serial-getty@ttyGS0.service << EOF
+        [Unit]
+        Description=Serial Console Service on ttyGS0
+
+        [Service]
+        ExecStart=-/usr/sbin/agetty -L 115200 ttyGS0 xterm+256color
+        Type=idle
+        Restart=always
+        RestartSec=0
+
+        [Install]
+        WantedBy=multi-user.target
+        EOF
+        sudo systemctl enable serial-getty@ttyGS0.service
+        echo g_serial >> /etc/modules
+
+    - name: Clean up chroot environment
+      run: |
+        sudo chroot ~/chroot apt clean
+        sudo chroot ~/chroot rm -f /tmp/*
+        sudo chroot ~/chroot history -c
+        sudo chroot ~/chroot exit
+
+    - name: Convert rootfs.img to sparse image
+      run: |
+        sudo img2simg ~/workspaces/rootfs-focal.img ~/workspaces/tmp_mkboot/rootfs.img
+
+    - name: List output files
+      run: |
+        ls ~/workspaces/tmp_mkboot/
