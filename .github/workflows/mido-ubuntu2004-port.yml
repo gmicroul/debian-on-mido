@@ -43,7 +43,9 @@ jobs:
 
     - name: Clean and configure kernel
       run: |
-        make clean
+        ls -ltrh
+        pwd
+        #make clean
         make menuconfig
 
     - name: Compile kernel
