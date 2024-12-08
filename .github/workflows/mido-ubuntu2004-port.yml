@@ -17,10 +17,10 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y binfmt-support qemu-user-static gcc-10-aarch64-linux-gnu kernel-package fakeroot simg2img img2simg mkbootimg bison flex gcc-aarch64-linux-gnu pkg-config libncurses-dev libssl-dev unzip git debootstrap
 
-    - name: Set up git proxy (if needed)
-      run: |
-        chmod +x gitproxy.sh
-        ./gitproxy.sh on
+    #- name: Set up git proxy (if needed)
+    #  run: |
+    #    chmod +x gitproxy.sh
+    #    ./gitproxy.sh on
 
     - name: Clone the kernel repository
       run: |
