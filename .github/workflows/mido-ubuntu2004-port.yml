@@ -27,37 +27,28 @@ jobs:
         git clone https://github.com/msm8953-mainline/linux.git --depth 1
         cd linux
 
-    - name: Download .config file
-      run: |
+
         wget https://gitee.com/meiziyang2023/ubuntu-ports-xiaomi-625-phones/raw/master/.config
 
-    - name: Set up environment variables
-      run: |
         echo "export CROSS_COMPILE=aarch64-linux-gnu-" > env.sh
         echo "export ARCH=arm64" >> env.sh
         echo "export CC=aarch64-linux-gnu-gcc" >> env.sh
         chmod +x env.sh
 
-    - name: Source environment variables
-      run: source ./env.sh
+        source ./env.sh
 
-    - name: Clean and configure kernel
-      run: |
         ls -ltrh
         pwd
-        #make clean
+        make clean
         make menuconfig
 
-    - name: Compile kernel
-      run: |
+
         make -j$(nproc)
 
-    - name: Build kernel deb package
-      run: |
+
         fakeroot make-kpkg --initrd --cross-compile aarch64-linux-gnu- --arch arm64 kernel_image kernel_headers -j$(nproc)
 
-    - name: Move kernel deb package to workspace
-      run: |
+
         mv *.deb ~/workspaces/
 
     - name: Create rootfs.img
